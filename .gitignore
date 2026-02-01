@@ -10,7 +10,7 @@
 !/README.md
 !/px-milter.pl
 !/px-milter.user-filter.pm.sample
-!/milter_start.sh
+!/milter_start.sh.sample
 
 #--------------------------------------
 # Sendmail::PMilter
