@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 #-------------------------------------------------------------------------------
-my $LastUpdate = '2026.0x.xx';
+my $LastUpdate = '2026.02.02';
 ################################################################################
 # PX SPAM milter
 ################################################################################
@@ -26,7 +26,7 @@ my $USER_FILTER         = $0 =~ s|^.*/([\w\-\.]+)\.\w+$|$1.user-filter.pm|r;
 my $USER_FILTER_PACKAGE = 'px_filter';
 
 my $MILTER_NAME    = 'PX-Milter';
-my $DETECT_HEADER  = 'X-Spam-Detect';
+my $DETECT_HEADER  = 'X-PX-Spam-Detect';
 #-------------------------------------------------------------------------------
 # command line options
 #-------------------------------------------------------------------------------
@@ -163,8 +163,16 @@ $cb{header} = sub {
 };
 
 #-------------------------------------------------------------------------------
-# Judgment
+# Judgement
 #-------------------------------------------------------------------------------
+sub add_detect_header {
+	my $ctx = shift;
+	my $val = shift;
+	if (ref($ctx) eq 'Sendmail::PMilter::Context') {
+		$ctx->addheader($DETECT_HEADER, $val);
+	}
+}
+
 $cb{eom} = sub {
 	my $ctx = shift;
 	my $to_name   = $header{to}   =~ s/\s*<.*//rs;	# remove <adr@dom>
@@ -193,6 +201,7 @@ $cb{eom} = sub {
 	});
 
 	if (!$r) {
+		&add_detect_header($ctx, "no");
 		return SMFIS_CONTINUE;	# Accept
 	}
 
@@ -204,9 +213,8 @@ $cb{eom} = sub {
 	&log("<$msg_id> is SPAM ($reason)");
 	if ($MODE ne '') { return $MODE; }
 
-	if (ref($ctx) eq 'Sendmail::PMilter::Context') {
-		$ctx->addheader($DETECT_HEADER, "yes ($reason)");
-	}
+	&add_detect_header($ctx, "yes ($reason)");
+
 	return SMFIS_CONTINUE;
 };
 
