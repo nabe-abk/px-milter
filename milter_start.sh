@@ -1,0 +1,39 @@
+#!/bin/sh
+
+PROG=px-milter.pl
+LOG_FILE=milter_log.txt
+
+FILE_MODE=700
+LOGF_MODE=600
+
+#-------------------------------------------------
+chmod $FILE_MODE $0
+
+DIR=`dirname $0`
+cd $DIR
+
+chmod $FILE_MODE $PROG
+
+#-------------------------------------------------
+PID=`ps h -o pid -C $PROG`
+if [ "$PID" != "" ]; then
+	echo kill -KILL $PID
+	kill -KILL $PID
+fi
+if [ "$1" = "stop" ]; then
+	exit;
+fi
+
+
+if [ "$1" = "-s" ]; then
+	echo ./$PROG -s \&
+	./$PROG -s &
+
+else
+	echo ./$PROG \>\>$LOG_FILE \&
+	./$PROG >>$LOG_FILE &
+
+	echo chmod $LOGF_MODE $LOG_FILE
+	chmod $LOGF_MODE $LOG_FILE
+fi
+

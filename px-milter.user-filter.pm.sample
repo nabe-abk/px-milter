@@ -1,0 +1,53 @@
+use strict;
+################################################################################
+# user filter main
+################################################################################
+# This file is auto reload.
+#
+package px_filter;
+#-------------------------------------------------------------------------------
+my %USER = map { $_ => 1 } qw(
+	username@example.jp
+);
+my $IS_SPAM = 1;
+my $ACCEPT  = 0;
+#-------------------------------------------------------------------------------
+# main
+#-------------------------------------------------------------------------------
+# Ret:
+#	0	accept (not SPAM)
+#	1	detect SPAM
+#
+sub main {
+	my $arg      = shift;
+	my $c_name   = $arg->{c_name};
+	my $c_ip     = $arg->{c_ip};
+	my $c_host   = $arg->{c_host};
+	my $env_from = $arg->{env_from};
+	my $rcpt_to  = $arg->{rcpt_to};
+	my $msg_id   = $arg->{msg_id};
+	my $to_name  = $arg->{to_name};
+	my $from_name= $arg->{from_name};
+	my $header   = $arg->{header};	# hash ref
+
+	if (! $USER{$rcpt_to}) {
+		return $ACCEPT;
+	}
+
+	# setted "to name"
+	if ($to_name ne '' && $to_name ne $rcpt_to && $to_name ne ($rcpt_to =~ s/\@.*//rg)) {
+		return $ACCEPT;
+	}
+
+	if ($header->{'x-mailer'} =~ /Foxmail/) {
+		return ($IS_SPAM, "Decect Foxmail");
+	}
+	if ($header->{'x-mailer'} =~ /Supmailer/) {
+		return ($IS_SPAM, "Decect Supmailer");
+	}
+
+	return $ACCEPT;
+}
+
+################################################################################
+1;

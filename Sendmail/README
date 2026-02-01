@@ -1,0 +1,47 @@
+February 2024.
+
+Sendmail::PMilter
+=================
+
+Sendmail::PMilter makes it possible - in fact easy - to write milters
+for the Sendmail or Postfix Mail Transfer Agents in pure Perl.
+
+Sendmail::PMilter provides a set of functions which replace those in
+the 'libmilter' library supplied with Sendmail, plus some constants
+which are needed to support milters which make use of of the Milter
+Protocol - especially Version 6 of the Protocol.  Sendmail itself has
+supported the Milter Protocol by default since 2004.  It provides the
+optional 'libmilter' which is written in C.  For Perl milters this can
+be replaced by Sendmail::PMilter.  A milter written in Perl does not
+need the 'libmilter' library, and the 'libmilter' provided by Sendmail
+need not be built (unless it is needed by other milters).
+
+Sendmail::PMilter supports Milter Protocol Version 6 'negotiation'.
+
+Sendmail::PMilter supports both IPv4 and IPv6.
+
+For installation instructions see the file named INSTALL.  If during
+installation the standard procedures are followed, then the tests in
+t/ will be run automatically before the final installation step.
+
+As of 2024 this author has been using Sendmail::PMilter routinely to
+handle modest volumes of mail for about eight years.  Several people
+have also admitted to using it with Postfix, including one with around
+500 mail accounts.  It seems to be working well for them.
+
+Enjoy!
+
+Ged Haywood, February 2024.
+
+----------------------------------------------------------------------
+For copyright/license terms see the file named LICENCE.
+
+The Changelog is, er, in the file named Changelog.
+
+Comments via the CPAN bug tracking system will be most welcome.
+
+Ged Haywood, BSc (1st hons 1975), CEng, MIET, MRIN; 1st dan (BJA);
+RNLI Life Governor; RSPB Life Fellow; Woodland Trust Life Member;
+PPL(H); Qualified Ship Radio Operator; RYA Yachmaster; Unicyclist;
+NVQ level 4 (motorcycle); and Perl coder since 1995.
+----------------------------------------------------------------------
