@@ -1,0 +1,4 @@
+How to test
+-----------
+
+./px-milter.pl -t test/spam01.eml
