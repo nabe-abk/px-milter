@@ -7,8 +7,8 @@ You can create email filters with just a little perl code.
 
   * Postfix or Sendmail
   * Perl 5.14 or later
-  * [Sendmail::PMilter](https://github.com/avar/sendmail-pmilter)
-    - Included in this repository under [Sendmail/](./Sendmail/). Sendmail::PMilter have [other license](./Sendmail/LICENSE).
+  * [Sendmail::PMilter](https://github.com/avar/sendmail-pmilter) in [Sendmail/](./Sendmail/)
+  * [libspf2/Mail::SPF_XS](https://github.com/shevek/libspf2/tree/master) (option)
 
 ----------------------------------------------------------------------
 [Japanese]
@@ -20,8 +20,8 @@ You can create email filters with just a little perl code.
 
  * Postfix または Sendmail
  * Perl 5.14 以降
- * [Sendmail::PMilter](https://github.com/avar/sendmail-pmilter)
-   - このリポジトリの [Sendmail/](./Sendmail/) 以下に含まれます。また Sendmail::PMilter は[異なるライセンス](./Sendmail/LICENSE)を持ちます。
+ * [Sendmail::PMilter](https://github.com/avar/sendmail-pmilter) in [Sendmail/](./Sendmail/)
+ * [libspf2/Mail::SPF_XS](https://github.com/shevek/libspf2/tree/master) (option)
 
 # インストール方法
 

@@ -15,6 +15,7 @@ use constant IS_SPAM	=> 1;
 use constant ADD_HEADER	=> -1;		# force add header and email is accept
 use constant REJECT	=> 101;		# force REJECT
 use constant DISCARD	=> 102;		# force DISCARD
+use constant TEMPFAIL	=> 104;		# force TEMPFAIL
 ################################################################################
 # main
 ################################################################################
@@ -37,6 +38,19 @@ sub main {
 	my $html     = $arg->{html};
 	my $attaches = $arg->{attaches};	# array ref
 
+	if ($Mail::SPF_XS::VERSION) {
+		#
+		# SPF function require Mail::SPF_XS library.
+		#	apt-get install libmail-spf-xs-perl
+		#
+		my $code = $arg->check_spf();			# pass fail softfail none
+		$arg->add_header('X-SPF-Check', $code);		# add Header
+
+		if ($code eq 'fail' || $code eq 'softfail') {
+			return (REJECT, "SPF $code", '5.7.1', 'SPF fail');
+		}
+	}
+
 	if (! $USER{$rcpt_to}) {
 		return ACCEPT;
 	}
@@ -55,6 +69,5 @@ sub main {
 
 	return ACCEPT;
 }
-
 ################################################################################
 1;

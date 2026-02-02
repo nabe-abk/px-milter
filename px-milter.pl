@@ -15,8 +15,12 @@ BEGIN {
 use strict;
 use Fcntl;
 use threads;
+#
 use Sakia::Net::MailParser;
 use Sendmail::PMilter qw(:all);
+eval {
+	require Mail::SPF_XS;
+};
 ################################################################################
 my $DEBUG = 0;
 my $PRINT = 1;
@@ -287,8 +291,8 @@ $cb{eom} = sub {
 		&log("<$msg_id> Accept (filter load failed)");
 		return SMFIS_CONTINUE;	# if error continue
 	}
-
-	my ($r, $reason) = &$filter({
+	my $arg = new arg_service({
+		ctx	=> $ctx,
 		c_name	=> $c_name,
 		c_ip	=> $c_ip,
 		c_host	=> $c_host,
@@ -303,6 +307,8 @@ $cb{eom} = sub {
 		html	=> $mail->{html},
 		attaches=> $mail->{attaches}
 	});
+
+	my ($r, $reason, @reply) = &$filter($arg);
 	my $ACCEPT	= px_filter::ACCEPT();		# load constant
 	my $IS_SPAM	= px_filter::IS_SPAM();		#
 	my $ADD_HEADER	= px_filter::ADD_HEADER();	#
@@ -327,6 +333,13 @@ $cb{eom} = sub {
 	}
 
 	&log("<$msg_id> " . &get_smfis_code_name($res));
+
+	if ($res == SMFIS_REJECT && @reply) {
+		if (ref($ctx) eq 'Sendmail::PMilter::Context') {
+		        $ctx->setreply(550, @reply);
+		}
+	}
+
 	return $res;
 };
 
@@ -598,4 +611,41 @@ sub fread_lines {
 	close($fh);
 
 	return \@lines;
+}
+
+################################################################################
+# subroutine for user_filter
+################################################################################
+package arg_service;
+sub new {
+	my $class = shift;
+	return bless(shift, $class);
+}
+
+sub check_spf {
+	my $arg = shift;
+	my $spf = Mail::SPF_XS::Server->new({});
+	my $req = Mail::SPF_XS::Request->new({
+		identity        => $arg->{env_from},
+		ip_address      => $arg->{c_ip}
+	});
+	my $result = $spf->process($req);
+	#
+	# SPF_strresult() in https://github.com/shevek/libspf2/blob/master/src/libspf2/spf_utils.c
+	#
+	my $code = $result->code;
+	return ($code eq 'pass' || $code eq 'fail' || $code eq 'softfail') ? $code : 'none';
+}
+
+sub add_header {
+	my $arg = shift;
+	my $key = shift;
+	my $val = shift;
+	my $ctx = $arg->{ctx};
+
+	&main::log("<$msg_id> Add \"$key: $val\"");
+
+	if (ref($ctx) eq 'Sendmail::PMilter::Context') {
+		$ctx->addheader($key, $val);
+	}
 }
