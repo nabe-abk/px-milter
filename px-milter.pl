@@ -30,6 +30,12 @@ my $USER_FILTER_PACKAGE = 'px_filter';
 my $MILTER_NAME   = 'PX-Milter';
 my $DETECT_HEADER = 'X-PX-Spam-Detect';
 #-------------------------------------------------------------------------------
+# Constant
+#-------------------------------------------------------------------------------
+my $SMFIP_SKIP = 0x00000400;
+my $SMFIR_SKIP = 's';
+my $SMFIP      = 0;		# Negociated protocol flags
+#-------------------------------------------------------------------------------
 # command line options
 #-------------------------------------------------------------------------------
 my $TEST_FILE;
@@ -109,6 +115,7 @@ my $parser = new Sakia::Net::MailParser({});
 #-------------------------------------------------------------------------------
 # To improve throughput.
 #
+my $send_SMFIR_SKIP;
 if (1) {
 	require Sendmail::PMilter::Context;
 	*Sendmail::PMilter::Context::write_packet
@@ -116,6 +123,11 @@ if (1) {
 		my $this = shift;
 		my $code = shift;
 		my $out  = shift // '';
+		if (($SMFIP & SMFIP_SKIP) && $send_SMFIR_SKIP) {
+			$code = $SMFIR_SKIP;
+			$out  = '';
+			$send_SMFIR_SKIP = 0;
+		}
 		my $len  = pack('N', length($out) + 1);
 
 		$this->{socket}->syswrite($len . $code . $out);
@@ -137,6 +149,17 @@ my $rcpt_to;
 my $msg_id;
 my %header;
 my $body = '';
+
+$cb{negotiate} = sub {
+	my $ctx   = shift;
+	my $r_ver = shift;	# milter_protocol_version_ref
+	my $r_act = shift;	# actions_available_ref
+	my $r_pro = shift;	# protocol_steps_available_ref
+
+	$SMFIP = ($$r_pro &= (SMFIP_DEFAULTS | $SMFIP_SKIP));
+
+	return SMFIS_CONTINUE;
+};
 
 $cb{helo} = sub {
 	my $ctx = shift;
@@ -207,6 +230,9 @@ $cb{body} = sub {
 
 	if (length($body) < $MAX_BODY) {
 		$body .= $add;
+	}
+	if ($MAX_BODY < length($body)) {
+		$send_SMFIR_SKIP = 1;	# Skip subsequent body callbacks
 	}
 
 	return SMFIS_CONTINUE;
@@ -299,8 +325,8 @@ $cb{eom} = sub {
 		&add_detect_header($ctx, "yes ($reason)");
 		return SMFIS_CONTINUE;
 	}
-	if ($res == SMFIS_REJECT)  { &log("<$msg_id> REJECT");  }
-	if ($res == SMFIS_DISCARD) { &log("<$msg_id> DISCARD"); }
+
+	&log("<$msg_id> " . &get_smfis_code_name($res));
 	return $res;
 };
 
@@ -383,16 +409,7 @@ else {
 		my $r = &$func(\%ctx, @_);
 		if ($r == SMFIS_CONTINUE) { return; }
 
-		print "[$type] ";
-		   if ($r == SMFIS_REJECT)   { print "REJECT\n";   }
-		elsif ($r == SMFIS_DISCARD)  { print "DISCARD\n";  }
-		elsif ($r == SMFIS_ACCEPT)   { print "ACCEPT\n";   }
-		elsif ($r == SMFIS_TEMPFAIL) { print "TEMPFAIL\n"; }
-		elsif ($r == SMFIS_MSG_LOOP) { print "MSG_LOOP\n"; }
-		elsif ($r == SMFIS_ALL_OPTS) { print "ALL_OPTS\n"; }
-		else {
-			print "UNKOWN: $r\n";
-		}
+		print "[$type] " . &get_smfis_code_name($r) . "\n";
 		exit($r);
 	}
 
@@ -417,6 +434,7 @@ else {
 		$data   = substr($data, $CHUNK);
 
 		&callback('body', $buf, length($buf));
+		if ($send_SMFIR_SKIP) { last; }
 	}
 	&callback('eom');
 
@@ -475,6 +493,17 @@ sub my_dispatcher {		# "$this" is obj of Sendmail::PMilter
 		}
 		$th->detach;
 	}
+}
+
+sub get_smfis_code_name {
+	my $c = shift;
+	if ($c == SMFIS_REJECT)   { return "REJECT";   }
+	if ($c == SMFIS_DISCARD)  { return "DISCARD";  }
+	if ($c == SMFIS_ACCEPT)   { return "ACCEPT";   }
+	if ($c == SMFIS_TEMPFAIL) { return "TEMPFAIL"; }
+	if ($c == SMFIS_MSG_LOOP) { return "MSG_LOOP"; }
+	if ($c == SMFIS_ALL_OPTS) { return "ALL_OPTS"; }
+	return 'UNKNOWN';
 }
 
 ################################################################################
