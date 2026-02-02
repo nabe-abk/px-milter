@@ -9,11 +9,15 @@ package px_filter;
 my %USER = map { $_ => 1 } qw(
 	username@example.jp
 );
-my $IS_SPAM = 1;
-my $ACCEPT  = 0;
 #-------------------------------------------------------------------------------
+use constant ACCEPT	=> 0;
+use constant IS_SPAM	=> 1;
+use constant ADD_HEADER	=> -1;		# force add header and email is accept
+use constant REJECT	=> 101;		# force REJECT
+use constant DISCARD	=> 102;		# force DISCARD
+################################################################################
 # main
-#-------------------------------------------------------------------------------
+################################################################################
 # Ret:
 #	0	accept (not SPAM)
 #	1	detect SPAM
@@ -34,22 +38,22 @@ sub main {
 	my $attaches = $arg->{attaches};	# array ref
 
 	if (! $USER{$rcpt_to}) {
-		return $ACCEPT;
+		return ACCEPT;
 	}
 
 	# setted "to name"
 	if ($to_name ne '' && $to_name ne $rcpt_to && $to_name ne ($rcpt_to =~ s/\@.*//rg)) {
-		return $ACCEPT;
+		return ACCEPT;
 	}
 
 	if ($header->{'x-mailer'} =~ /Foxmail/) {
-		return ($IS_SPAM, "Decect Foxmail");
+		return (IS_SPAM, "Decect Foxmail");
 	}
 	if ($header->{'x-mailer'} =~ /Supmailer/) {
-		return ($IS_SPAM, "Decect Supmailer");
+		return (IS_SPAM, "Decect Supmailer");
 	}
 
-	return $ACCEPT;
+	return ACCEPT;
 }
 
 ################################################################################

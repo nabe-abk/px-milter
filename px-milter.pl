@@ -27,8 +27,8 @@ my $MAX_BODY = 1024*1024;	# 1MB
 my $USER_FILTER         = $0 =~ s|^.*/([\w\-\.]+)\.\w+$|$1.user-filter.pm|r;
 my $USER_FILTER_PACKAGE = 'px_filter';
 
-my $MILTER_NAME    = 'PX-Milter';
-my $DETECT_HEADER  = 'X-PX-Spam-Detect';
+my $MILTER_NAME   = 'PX-Milter';
+my $DETECT_HEADER = 'X-PX-Spam-Detect';
 #-------------------------------------------------------------------------------
 # command line options
 #-------------------------------------------------------------------------------
@@ -43,7 +43,7 @@ my $TEST_FILE;
 		if ($x eq '-s') { $PRINT = 0; next; }
 		if ($x eq '-h') { $HELP  = 1; next; }
 
-		if ($x eq '-add')     { $MODE = ''; next; }
+		if ($x eq '-pass')    { $MODE = undef; next; }
 		if ($x eq '-reject')  { $MODE = SMFIS_REJECT;  next; }
 		if ($x eq '-discard') { $MODE = SMFIS_DISCARD; next; }
 
@@ -75,7 +75,7 @@ Available options are:
   -h		view this help
 
 [Run modes]
-  -add		Add "$DETECT_HEADER: yes (reason)" to header (default)
+  -pass		Add "$DETECT_HEADER: yes (reason)" to header (default)
   -reject	REJECT  mode
   -discard	DISCARD mode
 HELP
@@ -218,6 +218,8 @@ $cb{body} = sub {
 sub add_detect_header {
 	my $ctx = shift;
 	my $val = shift;
+	&log("<$msg_id> Add \"$DETECT_HEADER: $val\"");
+
 	if (ref($ctx) eq 'Sendmail::PMilter::Context') {
 		$ctx->addheader($DETECT_HEADER, $val);
 	}
@@ -275,8 +277,11 @@ $cb{eom} = sub {
 		html	=> $mail->{html},
 		attaches=> $mail->{attaches}
 	});
+	my $ACCEPT	= px_filter::ACCEPT();		# load constant
+	my $IS_SPAM	= px_filter::IS_SPAM();		#
+	my $ADD_HEADER	= px_filter::ADD_HEADER();	#
 
-	if (!$r) {
+	if ($r == $ACCEPT) {
 		&add_detect_header($ctx, "no");
 		return SMFIS_CONTINUE;	# Accept
 	}
@@ -287,11 +292,16 @@ $cb{eom} = sub {
 	if ($reason eq '') { $reason = 'no reason'; }
 
 	&log("<$msg_id> is SPAM ($reason)");
-	if ($MODE ne '') { return $MODE; }
 
-	&add_detect_header($ctx, "yes ($reason)");
+	my $res = ($r == $IS_SPAM) ? ($MODE // $ADD_HEADER) : $r;
 
-	return SMFIS_CONTINUE;
+	if ($res == $ADD_HEADER) {
+		&add_detect_header($ctx, "yes ($reason)");
+		return SMFIS_CONTINUE;
+	}
+	if ($res == SMFIS_REJECT)  { &log("<$msg_id> REJECT");  }
+	if ($res == SMFIS_DISCARD) { &log("<$msg_id> DISCARD"); }
+	return $res;
 };
 
 #-------------------------------------------------------------------------------
