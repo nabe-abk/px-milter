@@ -322,8 +322,6 @@ $cb{eom} = sub {
 	#-------------------------------------------------------------
 	if ($reason eq '') { $reason = 'no reason'; }
 
-	&log("<$msg_id> is SPAM ($reason)");
-
 	my $res = ($r == $IS_SPAM) ? ($MODE // $ADD_HEADER) : $r;
 
 	if ($res == $ADD_HEADER) {
@@ -331,7 +329,7 @@ $cb{eom} = sub {
 		return SMFIS_CONTINUE;
 	}
 
-	&log("<$msg_id> " . &get_smfis_code_name($res));
+	&log("<$msg_id> " . &get_smfis_code_name($res) . " ($reason)");
 
 	if ($res == SMFIS_REJECT && @reply) {
 		if (ref($ctx) eq 'Sendmail::PMilter::Context') {
