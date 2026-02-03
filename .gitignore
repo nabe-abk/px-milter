@@ -8,8 +8,8 @@
 #--------------------------------------
 !/LICENSE
 !/README.md
-!/px-milter.pl
-!/px-milter.user-filter.pm.sample
+!/ez-milter.pl
+!/ez-milter.user-filter.pm.sample
 !/milter_start.sh.sample
 
 #--------------------------------------

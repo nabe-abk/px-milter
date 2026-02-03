@@ -2,8 +2,8 @@
 #-------------------------------------------------------------------------------
 my $LastUpdate = '2026.02.03';
 ################################################################################
-# PX-Milter - Easy SPAM Mail Filter	   (C)2026 nabe@abk
-#	https://github.com/nabe-abk/px-milter/
+# EZ-Milter - Easy SPAM Mail Filter	   (C)2026 nabe@abk
+#	https://github.com/nabe-abk/ez-milter/
 ################################################################################
 BEGIN {
 	my $path = $0;
@@ -28,10 +28,10 @@ my $MODE;
 my $MAX_BODY = 1024*1024;	# 1MB
 
 my $USER_FILTER         = $0 =~ s|^.*/([\w\-\.]+)\.\w+$|$1.user-filter.pm|r;
-my $USER_FILTER_PACKAGE = 'px_filter';
+my $USER_FILTER_PACKAGE = 'user_filter';
 
-my $MILTER_NAME   = 'PX-Milter';
-my $DETECT_HEADER = 'X-PX-Spam-Detect';
+my $MILTER_NAME   = 'EZ-Milter';
+my $DETECT_HEADER = 'X-EZ-Spam-Detect';
 #-------------------------------------------------------------------------------
 # Constant
 #-------------------------------------------------------------------------------
@@ -103,7 +103,7 @@ HELP
 #-------------------------------------------------------------------------------
 # Init
 #-------------------------------------------------------------------------------
-&log("PX-Milter - Easy SPAM Mail Filter	 -- $LastUpdate");
+&log("EZ-Milter - Easy SPAM Mail Filter	 -- $LastUpdate");
 
 if (!-e $USER_FILTER) {
 	&log("Copy default user filter from $USER_FILTER.sample");
@@ -308,9 +308,9 @@ $cb{eom} = sub {
 	});
 
 	my ($r, $reason, @reply) = &$filter($arg);
-	my $ACCEPT	= px_filter::ACCEPT();		# load constant
-	my $IS_SPAM	= px_filter::IS_SPAM();		#
-	my $ADD_HEADER	= px_filter::ADD_HEADER();	#
+	my $ACCEPT	= ez_filter::ACCEPT();		# load constant
+	my $IS_SPAM	= ez_filter::IS_SPAM();		#
+	my $ADD_HEADER	= ez_filter::ADD_HEADER();	#
 
 	if ($r == $ACCEPT) {
 		&add_detect_header($ctx, "no");

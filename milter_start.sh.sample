@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PROG=px-milter.pl
+PROG=ez-milter.pl
 LOG_FILE=milter_log.txt
 OPTIONS=""
 

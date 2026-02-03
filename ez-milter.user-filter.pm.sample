@@ -2,9 +2,9 @@ use strict;
 ################################################################################
 # user filter main
 ################################################################################
-# This file is auto reload.
+# This file is automatically reloaded.
 #
-package px_filter;
+package user_filter;
 #-------------------------------------------------------------------------------
 my %USER = map { $_ => 1 } qw(
 	username@example.jp
