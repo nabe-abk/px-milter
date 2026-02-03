@@ -1,11 +1,10 @@
 #!/usr/bin/perl
 #-------------------------------------------------------------------------------
-my $LastUpdate = '2026.02.02';
+my $LastUpdate = '2026.02.03';
 ################################################################################
-# PX SPAM milter
+# PX-Milter - Easy SPAM Mail Filter	   (C)2026 nabe@abk
+#	https://github.com/nabe-abk/px-milter/
 ################################################################################
-# use https://metacpan.org/pod/Sendmail::PMilter
-#
 BEGIN {
 	my $path = $0;
 	$path =~ s|/[^/]*||;
@@ -15,11 +14,11 @@ BEGIN {
 use strict;
 use Fcntl;
 use threads;
-#
+
 use Sakia::Net::MailParser;
 use Sendmail::PMilter qw(:all);
 eval {
-	require Mail::SPF_XS;
+	require Mail::SPF_XS;	# Required for SPF checks
 };
 ################################################################################
 my $DEBUG = 0;
@@ -38,7 +37,7 @@ my $DETECT_HEADER = 'X-PX-Spam-Detect';
 #-------------------------------------------------------------------------------
 my $SMFIP_SKIP = 0x00000400;
 my $SMFIR_SKIP = 's';
-my $SMFIP      = 0;		# Negociated protocol flags
+my $SMFIP      = 0;		# Negociated milter protocol flags
 #-------------------------------------------------------------------------------
 # command line options
 #-------------------------------------------------------------------------------
@@ -104,7 +103,7 @@ HELP
 #-------------------------------------------------------------------------------
 # Init
 #-------------------------------------------------------------------------------
-&log("PX SPAM Filter Server -- $LastUpdate");
+&log("PX-Milter - Easy SPAM Mail Filter	 -- $LastUpdate");
 
 if (!-e $USER_FILTER) {
 	&log("Copy default user filter from $USER_FILTER.sample");
@@ -469,11 +468,7 @@ sub my_dispatcher {		# "$this" is obj of Sendmail::PMilter
 	my $handler = shift;
 	my $max_ths = $this->get_max_interpreters();
 
-	my $siginfo = exists($SIG{INFO}) ? 'INFO' : 'USR1';
-	$SIG{$siginfo} = sub {
-		warn "Number of active threads: " . &get_ithreads() . ($max_ths ? "max=$max_ths" : '') . "\n";
-	};
-	$SIG{PIPE}  = 'IGNORE';
+	$SIG{PIPE} = 'IGNORE';
 
 	my $thread_main = sub {
 		my $sock = shift;
