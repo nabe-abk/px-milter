@@ -114,7 +114,9 @@ if (!-e $USER_FILTER) {
 	&log("Copy default user filter from $USER_FILTER.sample");
 	system('cp', "$USER_FILTER.sample", $USER_FILTER);
 }
-&load_user_filter();
+if (&load_user_filter()) {
+	exit;
+}
 
 my $parser = new Sakia::Net::MailParser({});
 
@@ -520,7 +522,7 @@ sub load_user_filter {
 	if (!-r $USER_FILTER) {
 		&log("Can't read user filter: $USER_FILTER");
 		unload_filter();
-		return;
+		return 1;
 	}
 	my @st   = stat($USER_FILTER);
 	my $size = $st[7];
@@ -533,7 +535,7 @@ sub load_user_filter {
 		if ($@) {
 			&log("User filter load error: $@");
 			unload_filter();
-			return;
+			return 10;
 		}
 		my $re = $user_filter_timestamp ? "re" : '';
 		$user_filter_size      = $size;
@@ -547,6 +549,7 @@ sub load_user_filter {
 		$IS_SPAM    = &{$USER_FILTER_PACKAGE . '::IS_SPAM'   }();
 		$ADD_HEADER = &{$USER_FILTER_PACKAGE . '::ADD_HEADER'}();
 	}
+	return 0;
 }
 
 sub load_filter_function {
