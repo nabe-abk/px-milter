@@ -59,6 +59,20 @@ sub main {
 		return ACCEPT;
 	}
 
+	# fake link
+	if ($html) {
+		while($html =~ m!<a\s+(?:"[^\"]*"|[^>])*\bhref\s*=\s*"([^\"]+)"[^>]*>\s*(https?://[^<]+?)\s*<!ig) {
+			my $url1 = $1;
+			my $url2 = $2;
+			$url1 =~ s|^https://([^/]*).*$|$1|;	# url -> hostname
+			$url2 =~ s|^https://([^/]*).*$|$1|;	# url -> hostname
+			if ($url1 ne $url2) {
+				return (IS_SPAM, "Decect fake link");
+			}
+		}
+		return ACCEPT;
+	}
+
 	if ($header->{'x-mailer'} =~ /Foxmail/) {
 		return (IS_SPAM, "Decect Foxmail");
 	}
