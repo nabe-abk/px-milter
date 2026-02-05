@@ -10,13 +10,13 @@ my %USER = map { $_ => 1 } qw(
 	username@example.jp
 );
 #-------------------------------------------------------------------------------
-use constant ACCEPT	=>  0;
-use constant NO_CHECK	=>  1;		# No check filter
-use constant IS_SPAM	=>  2;		# default SPAM action
-use constant ADD_HEADER	=> -1;		# force add header and email is accept
-use constant REJECT	=> 101;		# force REJECT   =SMFIS_REJECT
-use constant DISCARD	=> 102;		# force DISCARD  =SMFIS_DISCARD
-use constant TEMPFAIL	=> 104;		# force TEMPFAIL =SMFIS_TEMPFAIL
+use constant ACCEPT     =>   0;
+use constant NO_CHECK   =>   1;		# No check filter
+use constant IS_SPAM    =>   2;		# default SPAM action
+use constant ADD_HEADER =>  -1;		# force add header and email is accept
+use constant REJECT     => 101;		# force REJECT   =SMFIS_REJECT
+use constant DISCARD    => 102;		# force DISCARD  =SMFIS_DISCARD
+use constant TEMPFAIL   => 104;		# force TEMPFAIL =SMFIS_TEMPFAIL
 ################################################################################
 # main
 ################################################################################
