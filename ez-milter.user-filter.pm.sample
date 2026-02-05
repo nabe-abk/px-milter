@@ -70,7 +70,6 @@ sub main {
 				return (IS_SPAM, "Decect fake link");
 			}
 		}
-		return ACCEPT;
 	}
 
 	if ($header->{'x-mailer'} =~ /Foxmail/) {
