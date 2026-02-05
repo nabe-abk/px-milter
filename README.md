@@ -67,6 +67,23 @@ For Debian/Ubuntu, enter the following command as root:
 apt-get install libmail-spf-xs-perl
 ```
 
+## Coexistence with OpenDKIM verification
+
+Instead of configuring smtpd_milters directly in main.cf, configure it via variables.
+```
+milter_default_action = accept
+milter_protocol   = 6
+_smtpd_milters    = local:opendkim/opendkim.sock
+smtpd_milters     = $_smtpd_milters
+non_smtpd_milters = $smtpd_milters
+```
+
+Then, modify the smtpd_milters line in master.cf as follows:
+```
+   -o smtpd_milters=inet:127.0.0.1:10025,$_smtpd_milters
+```
+
+
 # インストール方法（Postfix）
 
 **mastar.cf**に以下の設定を追加し、**Postfixをリロード**します。
@@ -116,6 +133,22 @@ ez-milter.pl を自動起動するように設定します。例として cronta
 Debian/Ubuntuの場合、以下のコマンドをrootで入力します。
 ```
 apt-get install libmail-spf-xs-perl
+```
+
+## OpenDKIMの署名検証と共存させる
+
+main.cf で smtpd_milters を直接設定せずに、変数を介して設定します。
+```
+milter_default_action = accept
+milter_protocol   = 6
+_smtpd_milters    = local:opendkim/opendkim.sock
+smtpd_milters     = $_smtpd_milters
+non_smtpd_milters = $smtpd_milters
+```
+
+その上で、master.cf の smtpd_milters行を以下のようにします。
+```
+   -o smtpd_milters=inet:127.0.0.1:10025,$_smtpd_milters
 ```
 
 # Set filter rules
