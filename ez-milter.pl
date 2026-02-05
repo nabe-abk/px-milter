@@ -113,7 +113,7 @@ HELP
 #-------------------------------------------------------------------------------
 # Init
 #-------------------------------------------------------------------------------
-&log("EZ-Milter - Easy SPAM Mail Filter	 -- $LastUpdate");
+&log("EZ-Milter - Easy SPAM Mail Filter	 --- $LastUpdate (C)nabe\@abk");
 
 if (!-e $USER_FILTER) {
 	&log("Copy default user filter from $USER_FILTER.sample");
