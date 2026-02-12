@@ -751,7 +751,7 @@ sub try_connect {
 		&main::log("IO::Socket::IP is not found in try_connect()");
 		return;
 	};
-	*IO::Socket::IP::read_line = &_read_line_for_IO_Socket;
+	*IO::Socket::IP::read_line = \&_read_line_for_IO_Socket;
 
 	return IO::Socket::IP->new(
 		PeerHost => $ip,

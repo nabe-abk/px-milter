@@ -50,9 +50,12 @@ sub main {
 
 	# check PowerMTA
 	if ($c_host eq 'unknown') {
-		my $sock = $arg->try_connect($c_ip, 25);
-		if ($sock && $sock->read_line() =~ /PowerMTA/) {
-			return (IS_SPAM, "Decect PowerMTA server");
+		my $sock = $arg->try_connect($c_ip, 25);	# IO::Socket::IP object
+		if ($sock) {					# https://metacpan.org/pod/IO::Socket
+			if ($sock->read_line() =~ /PowerMTA/) {
+				return (IS_SPAM, "Decect PowerMTA server");
+			}
+			$sock->close();
 		}
 	}
 
