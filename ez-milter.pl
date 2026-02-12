@@ -157,6 +157,7 @@ if (1) {
 # callback types: close connect helo abort envfrom envrcpt header eoh eom
 #
 my %cb;
+my $cb_type;
 
 my $arg;
 my %header;
@@ -182,6 +183,7 @@ $cb{helo} = sub {
 	#
 	undef %header;
 	$arg = new arg_service({
+		ctx	=> $ctx,	# use by add_header() for user filter
 		header	=> \%header
 	});
 	$body     = '';
@@ -278,8 +280,22 @@ $cb{body} = sub {
 #-------------------------------------------------------------------------------
 # call user filter
 #-------------------------------------------------------------------------------
+my @add_header_buf;
+
 $cb{eom} = sub {
 	my $ctx = shift;
+
+	#-------------------------------------------------------------
+	# add header by buffer. addheader is only valid for "eom".
+	#-------------------------------------------------------------
+	foreach(@add_header_buf) {
+		$ctx->addheader($_->{key}, $_->{val});
+	}
+	undef @add_header_buf;
+
+	#-------------------------------------------------------------
+	# parse mail data
+	#-------------------------------------------------------------
 	my $to_name   = $header{to}   =~ m|(.*)\s*<.*| ? $1 : '';	# remove <adr@dom>
 	my $from_name = $header{from} =~ m|(.*)\s*<.*| ? $1 : '';	#
 	$to_name   =~ s/^"([^"]*)"$/$1/;		# dequote
@@ -382,7 +398,11 @@ sub add_header {
 	&log("$log_head Add \"$key: $val\"");
 
 	if (ref($ctx) eq 'Sendmail::PMilter::Context') {
-		$ctx->addheader($key, $val);
+		if ($ctx->{cb} eq 'eom') {
+			$ctx->addheader($key, $val);
+		} else {
+			push(@add_header_buf, { key=>$key, val=>$val });
+		}
 	}
 }
 
