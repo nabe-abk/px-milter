@@ -1,12 +1,13 @@
 use strict;
 #-------------------------------------------------------------------------------
 # Mail Parser module
-#							(C)2006-2025 nabe@abk
+#							(C)2006-2026 nabe@abk
 #-------------------------------------------------------------------------------
 #
 package Sakia::Net::MailParser;
-our $VERSION = '1.21';
+our $VERSION = '1.22';
 use Encode;
+use MIME::Base64;
 ################################################################################
 # base
 ################################################################################
@@ -225,7 +226,7 @@ sub decode_part_body {
 	$encode =~ tr/A-Z/a-z/;
 
 	if ($encode eq 'base64') {
-		return $self->base64decode($data);
+		return decode_base64($data);
 	}
 	if ($encode eq 'quoted-printable') {
 		return $self->decode_quoted_printable($data);
@@ -309,18 +310,8 @@ sub parse_address_list {
 }
 
 ################################################################################
-# MIME base64 decoder
+# Base64 / RFC3676 / quoted-printable decoder
 ################################################################################
-my @base64ary = (
- 0, 0, 0, 0,  0, 0, 0, 0,   0, 0, 0, 0,  0, 0, 0, 0,	# 0x00〜0x1f
- 0, 0, 0, 0,  0, 0, 0, 0,   0, 0, 0, 0,  0, 0, 0, 0,	# 0x10〜0x1f
- 0, 0, 0, 0,  0, 0, 0, 0,   0, 0, 0,62,  0,62, 0,63,	# 0x20〜0x2f
-52,53,54,55, 56,57,58,59,  60,61, 0, 0,  0, 0, 0, 0,	# 0x30〜0x3f
- 0, 0, 1, 2,  3, 4, 5, 6,   7, 8, 9,10, 11,12,13,14,	# 0x40〜0x4f
-15,16,17,18, 19,20,21,22,  23,24,25, 0,  0, 0, 0,63,	# 0x50〜0x5f
- 0,26,27,28, 29,30,31,32,  33,34,35,36, 37,38,39,40,	# 0x60〜0x6f
-41,42,43,44, 45,46,47,48,  49,50,51, 0,  0, 0, 0, 0	# 0x70〜0x7f
-);
 #-------------------------------------------------------------------------------
 # decode for one line
 #-------------------------------------------------------------------------------
@@ -336,7 +327,7 @@ sub decode_header_line {
 	my @buf;
 	$line =~ s/=\?([\w\-]*)\?[Bb]\?([A-Za-z0-9\+\/=]*)\?=/
 		my $mime_code = $1;
-		my $str = $self->base64decode($2);
+		my $str = decode_base64($2);
 		Encode::from_to($str, $mime_code, $code);
 		push(@buf, $str);
 		"\x00$#buf\x00";
@@ -427,29 +418,6 @@ sub decode_quoted_printable {	# Content-Transfer-Encoding: quoted-printable
 	$text =~ s/=([0-9A-Fa-f][0-9A-Fa-f])/chr(hex($1))/eg;
 	$text =~ s/=\r?\n//sg;
 	return $text;
-}
-
-sub base64decode {	# 'normal' or 'URL safe'
-	my $self = shift;
-	my $str  = shift;
-
-	my $ret;
-	my $buf;
-	my $f;
-	$str =~ s/\s//g;
-	$str =~ s/[=\.]+$//;
-	for(my $i=0; $i<length($str); $i+=4) {
-		$buf  = ($buf<<6) + $base64ary[ ord(substr($str,$i  ,1)) ];
-		$buf  = ($buf<<6) + $base64ary[ ord(substr($str,$i+1,1)) ];
-		$buf  = ($buf<<6) + $base64ary[ ord(substr($str,$i+2,1)) ];
-		$buf  = ($buf<<6) + $base64ary[ ord(substr($str,$i+3,1)) ];
-		$ret .= chr(($buf & 0xff0000)>>16) . chr(($buf & 0xff00)>>8) . chr($buf & 0xff);
-
-	}
-	my $f = length($str) & 3;	# mod 4
-	if ($f >1) { chop($ret); }
-	if ($f==2) { chop($ret); }
-	return $ret;
 }
 
 ################################################################################
