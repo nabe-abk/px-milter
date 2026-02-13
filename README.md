@@ -1,12 +1,19 @@
 # Easy SPAM Mail Filter
 
-It is a rule-based email filter using the "Sendmail Milter API" for Postfix.
-You can create email filters with just a little perl code.
-You can also use the SPF verification function.
+This software is a rule-based spam filter that runs on Postfix or Sendmail (unverified).
+By writing simple Perl code, you can implement a spam filter tailored to your needs.
+SPF verification is also available as a feature of this milter.
 
 このソフトは、Postfix または Sendmail（動作未確認）で動く、ルールベースのSPAMフィルターです。
 簡単な Perl のコードを書くだけで、自分思う通りの SPAM フィルターを実装することができます。
-またSPF検証機能も使用できます。
+SPF検証もこのMilterの機能として利用できます。
+
+Unlike other external filters,
+**Milter allows mail to be received without issue even if the filter process crashes accidentally**
+by setting `milter_default_action=accept`.
+
+Milterは他の外部フィルターと異なり、「milter_default_action=accept」を設定することで、
+**アクシデントでフィルタープロセスが落ちても問題なくメールを受信できます。**
 
 # Enviroment
 
