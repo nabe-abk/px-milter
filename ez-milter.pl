@@ -191,7 +191,8 @@ $cb{helo} = sub {
 	undef %header;
 	$arg = new arg_service({
 		ctx	=> $ctx,	# use by add_header() for user filter
-		header	=> \%header
+		header	=> \%header,
+		DEBUG	=> $DEBUG
 	});
 	$body     = '';
 	$pre_DATA =  1;
@@ -752,6 +753,7 @@ sub try_connect {
 		return;
 	};
 	*IO::Socket::IP::read_line = \&_read_line_for_IO_Socket;
+	$arg->{DEBUG} && print "try_connect: $ip:$port\n";
 
 	return IO::Socket::IP->new(
 		PeerHost => $ip,
