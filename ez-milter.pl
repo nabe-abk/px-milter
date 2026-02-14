@@ -31,7 +31,10 @@ my $DEBUG = 0;
 my $PRINT = 1;
 my $PORT  = 10025;
 my $MODE;
-my $MAX_BODY = 1024*1024;	# 1MB
+my $MAX_BODY = 10 *1024*1024;	# 1MB
+my $SAVE_DIR;
+my $SAVE_ALL;
+my $KEEP_DAYS = 7;
 
 my $USER_FILTER         = $0 =~ s|^.*/([\w\-\.]+)\.\w+$|$1.user-filter.pm|r;
 my $USER_FILTER_PACKAGE = 'user_filter';
@@ -61,9 +64,13 @@ my $TEST_FILE;
 	while(@ARGV) {
 		my $x = shift(@ARGV);
 		if ($x eq '-d') { $PRINT = $DEBUG = 10; next; }
-		if ($x eq '-s') { $PRINT = 0; next; }
+		if ($x eq '-s') { $PRINT = $DEBUG =  0; next; }
 		if ($x eq '-h') { $HELP  = 1; next; }
 		if ($x eq '-v') { $PRINT = 2; next; }
+
+		if ($x eq '-save')    { $SAVE_DIR  = shift(@ARGV); next; }
+		if ($x eq '-saveall') { $SAVE_ALL  = 1; next; }
+		if ($x eq '-days')    { $KEEP_DAYS = int(shift(@ARGV)); next; }
 
 		if ($x eq '-pass')    { $MODE = undef; next; }
 		if ($x eq '-reject')  { $MODE = SMFIS_REJECT;  next; }
@@ -93,13 +100,16 @@ my $TEST_FILE;
 Usage: $0 [options] [test-file.eml]
 
 Available options are:
-  -p port	bind port number (default: 10025)
-  -t file.eml	milter test mode
-  -m size	maximum email size to analyze [MB] (default: 1)
-  -s		silent mode
-  -d		debug mode
-  -v		verbose mode
-  -h		view this help
+  -p port	Bind port number (default: 10025)
+  -t file.eml	Milter test mode
+  -m size	Maximum email size to analyze [MB] (default: 10)
+  -save dir	Save not ACCEPT emails to dir (exclude check_pre_DATA() REJECT)
+  -saveall	Save with ACCEPT emails
+  -days num	Number of days to keep email files (default: 7, 0=infinitely)
+  -s		Silent mode
+  -d		Debug mode
+  -v		Verbose mode
+  -h		View this help
 
 [Run modes]
   -pass		Add "$DETECT_HEADER: yes (reason)" to header (default)
@@ -129,9 +139,18 @@ if (!-e $USER_FILTER) {
 	system('cp', "$USER_FILTER.sample", $USER_FILTER);
 }
 if (&load_user_filter()) {
-	exit;
+	exit(10);
 }
+if ($SAVE_DIR ne '') {
+	$SAVE_DIR =~ s|/*$|/|;
+	&log(($SAVE_ALL ? "All" : "REJECT/DISCARD") . " emails save to: $SAVE_DIR\n");
 
+	mkdir($SAVE_DIR);
+	if (!-d $SAVE_DIR || !-w $SAVE_DIR) {
+		&log("$SAVE_DIR is not writable!\n");
+		exit(11);
+	}
+}
 my $parser = new Sakia::Net::MailParser({});
 
 #-------------------------------------------------------------------------------
@@ -140,6 +159,7 @@ my $parser = new Sakia::Net::MailParser({});
 # To improve throughput.
 #
 my $send_SMFIR_SKIP;
+my $send_REJECT;	# REJECT or DISCARD or TEMPFAIL
 if (1) {
 	require Sendmail::PMilter::Context;
 	*Sendmail::PMilter::Context::write_packet
@@ -147,7 +167,9 @@ if (1) {
 		my $this = shift;
 		my $code = shift;
 		my $out  = shift // '';
-		if (($SMFIP & SMFIP_SKIP) && $send_SMFIR_SKIP) {
+		if ($code != SMFIS_CONTINUE) {
+			$send_REJECT = 1;
+		} elsif (($SMFIP & SMFIP_SKIP) && $send_SMFIR_SKIP) {
 			$code = $SMFIR_SKIP;
 			$out  = '';
 			$send_SMFIR_SKIP = 0;
@@ -196,6 +218,8 @@ $cb{helo} = sub {
 	});
 	$body     = '';
 	$pre_DATA =  1;
+	$send_SMFIR_SKIP = 0;
+	$send_REJECT     = 0;
 	#{
         #	daemon_addr => '192.168.0.10',
         #	daemon_name => 'my.example.jp',
@@ -229,11 +253,7 @@ $cb{envrcpt} = sub {
 	$arg->{rcpt_to} = shift =~ s/^<(.*)>$/$1/r;
 	$DEBUG && print "RCPT TO:   $arg->{rcpt_to}\n";
 
-	my $r = &call_user_filter($ctx, 'check_pre_DATA');
-	if ($r != SMFIS_CONTINUE) {
-		$pre_DATA = 0;
-	}
-	return $r;
+	return &call_user_filter($ctx, 'check_pre_DATA');
 };
 
 $cb{data} = sub {
@@ -284,8 +304,16 @@ $cb{body} = sub {
 
 $cb{quit} = sub {
 	my $ctx = shift;
-	if (1<$PRINT && $pre_DATA && $arg->{rcpt_to}) {
+	if (1<$PRINT && !$send_REJECT && $pre_DATA && $arg->{rcpt_to}) {
 		&log("Connection closed after RCPT TO and before DATA");
+	}
+	if (!$ctx->{test_mode} && $SAVE_DIR && ($SAVE_ALL || $send_REJECT) && $body) {
+		my $title = " $arg->{env_from} to $arg->{rcpt_to}" . ($header{subject} ne '' ? " - $header{subject}" : '');
+		$title =~ s|[\x00-\x1f\s]+| |g;
+		$title =~ s|[<>/:"'\\]|_|g;
+
+		&tmpwatch($SAVE_DIR);
+		&save_email_file($title, $body);
 	}
 	return SMFIS_CONTINUE;
 };
@@ -398,7 +426,6 @@ sub call_user_filter {
 	if ($res == SMFIS_REJECT && @reply && !$ctx->{test_mode}) {
 	        $ctx->setreply(550, @reply);
 	}
-
 	return $res;
 }
 
@@ -619,7 +646,7 @@ sub load_user_filter {
 		my $re = $user_filter_timestamp ? "re" : '';
 		$user_filter_size      = $size;
 		$user_filter_timestamp = $mod;
-		&log("User filter ${re}load: last modified=" . &get_timestamp($mod) . " / size=$size");
+		&log("User filter ${re}load: last modified=" . &get_timestamp($mod) . ", $size byte");
 	}
 	{
 		# Load constants
@@ -682,9 +709,10 @@ sub log {
 }
 
 sub get_timestamp {
-	my $tm = shift || time;
+	my $tm  = shift || time;
+	my $fmt = shift || "%04d-%02d-%02d %02d:%02d:%02d";
 	my ($s,$m,$h,$d,$mon,$y) = localtime($tm);
-	return sprintf("%04d-%02d-%02d %02d:%02d:%02d", $y+1900, $mon+1, $d, $h, $m, $s);
+	return sprintf($fmt, $y+1900, $mon+1, $d, $h, $m, $s);
 }
 
 #-------------------------------------------------------------------------------
@@ -697,6 +725,58 @@ sub fread_lines {
 	close($fh);
 
 	return \@lines;
+}
+
+#-------------------------------------------------------------------------------
+# save email file
+#-------------------------------------------------------------------------------
+sub save_email_file {
+	my $title = shift;
+	my $file  = $SAVE_DIR . &get_timestamp(time, "%04d%02d%02d-%02d%02d%02d") . $title . '.eml';
+	if (1<$PRINT) { &log("Save to $file"); }
+
+	sysopen(my $fh, $file, O_CREAT | O_WRONLY | O_TRUNC);
+	if (!$fh) {
+		&log("Create email file failed: $file");
+		return;
+	}
+	syswrite($fh, $_[0]);
+	close($fh);
+}
+
+#-------------------------------------------------------------------------------
+# tmpwatch
+#-------------------------------------------------------------------------------
+sub tmpwatch {
+	my $dir = shift;
+	my $sec = $KEEP_DAYS * 86400;
+	if ($sec<1) { return; }
+
+	my $check_tm = time - $sec;
+	my $files = &search_files( $dir, '.eml' );
+	my $c = 0;
+	foreach(@$files) {
+		my $file  = $dir . $_;
+		if ((stat($file))[9] > $check_tm) { next; }
+		$c += unlink( $file );
+	}
+	return $c;
+}
+sub search_files {
+	my $dir  = $_[0] . (substr(shift, -1) eq '/' ? '' : '/');
+	my $ext  = shift;
+
+	opendir(my $fh, $dir) || return [];
+	my @list;
+	foreach(readdir($fh)) {
+		if ($_ eq '.' || $_ eq '..') { next; }
+		if (substr($_,0,1) eq '.')   { next; }
+		if (-d "$dir$_")             { next; }
+		if ($ext ne '' && ($_ !~ /(\.\w+)$/ || $1 ne $ext)) { next; }
+		push(@list, $_);
+	}
+	closedir($fh);
+	return \@list;
 }
 
 ################################################################################
